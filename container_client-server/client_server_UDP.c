@@ -13,11 +13,17 @@
 char name[20];
 int PORT;
 
-void sending(char linha[ECHOMAX], int PORT, int sock);
-void receiving(int server_fd);
-void *receive_thread(void *server_fd);
+struct arg_struct {
+    int server_fd;
+		int PORT;
+    char *server_addr_ip;
+};
 
-int main(int argc, char const *argv[])
+void sending(char linha[ECHOMAX], int PORT, int sock, char *server_addr_ip);
+void receiving(struct arg_struct *arguments);
+void *receive_thread(struct arg_struct *arguments);
+
+int main(int argc, char const **argv)
 {
 	printf("Qual seu nome?");
 	scanf("%s", name);
@@ -38,7 +44,7 @@ int main(int argc, char const *argv[])
 	// Forcefully attaching socket to the port
 
 	address.sin_family = AF_INET;
-	address.sin_addr.s_addr = INADDR_ANY;
+	address.sin_addr.s_addr = htonl(INADDR_ANY);
 	address.sin_port = htons(PORT);
 
 	//Printed the server socket addr and port
@@ -57,7 +63,11 @@ int main(int argc, char const *argv[])
 	}
 	char ch[ECHOMAX];
 	pthread_t tid;
-	pthread_create(&tid, NULL, &receive_thread, &server_fd); 
+	struct arg_struct args;
+	args.server_fd = server_fd;
+	args.server_addr_ip = inet_addr(argv[1]);
+	args.PORT = PORT;
+	pthread_create(&tid, 0, &receive_thread, &args); 
 	do
 	{
 		printf("Escreva a mensagem para enviar\n");
@@ -66,7 +76,7 @@ int main(int argc, char const *argv[])
 			break;
 		}
 		ch[strcspn(ch, "\n")] = 0;
-		sending(ch, PORT, server_fd);
+		sending(ch, PORT, server_fd, args.server_addr_ip);
 	} while (strcmp(ch, "") != 0);
 
 	close(server_fd);
@@ -74,7 +84,7 @@ int main(int argc, char const *argv[])
 }
 
 //Sending messages to port
-void sending(char linha[ECHOMAX], int PORT, int sock)
+void sending(char linha[ECHOMAX], int PORT, int sock, char *server_addr_ip)
 {
 	struct sockaddr_in serv_addr;
 	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -84,7 +94,7 @@ void sending(char linha[ECHOMAX], int PORT, int sock)
 	}
 
 	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_addr.s_addr = INADDR_ANY;
+	serv_addr.sin_addr.s_addr = server_addr_ip;
 	serv_addr.sin_port = htons(PORT);
 
 	if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
@@ -100,27 +110,30 @@ void sending(char linha[ECHOMAX], int PORT, int sock)
 }
 
 //Calling receiving every 2 seconds
-void *receive_thread(void *server_fd)
+void *receive_thread(struct arg_struct *arguments)
 {
-	int s_fd = *((int *)server_fd);
 	while (1)
 	{
 		sleep(2);
-		receiving(s_fd);
+		receiving(arguments);
 	}
 }
 
 //Receiving messages on our port
-void receiving(int server_fd)
+void receiving(struct arg_struct *arguments)
 {
 	struct sockaddr_in address;
 	char linha[ECHOMAX] = {0};
 	int addrlen = sizeof(address);
 	fd_set current_sockets, ready_sockets;
 
+	address.sin_family = AF_INET;
+	address.sin_addr.s_addr = htonl(INADDR_ANY);
+	address.sin_port = htons(arguments->PORT);
+
 	//Initialize my current set
 	FD_ZERO(&current_sockets);
-	FD_SET(server_fd, &current_sockets);
+	FD_SET(arguments->server_fd, &current_sockets);
 	int k = 0;
 	while (1)
 	{
@@ -132,17 +145,17 @@ void receiving(int server_fd)
 			perror("ERRO :(");
 			exit(EXIT_FAILURE);
 		}
-
-		for (int i = 0; i < FD_SETSIZE; i++)
+		int i = 0;
+		for (i; i < FD_SETSIZE; ++i)
 		{
 			if (FD_ISSET(i, &ready_sockets))
 			{
 
-				if (i == server_fd)
+				if (i == arguments->server_fd)
 				{
 					int client_socket;
 
-					if ((client_socket = accept(server_fd, (struct sockaddr *)&address,
+					if ((client_socket = accept(arguments->server_fd, (struct sockaddr *)&address,
 																			(socklen_t *)&addrlen)) < 0)
 					{
 						perror("accept falhou :(");
