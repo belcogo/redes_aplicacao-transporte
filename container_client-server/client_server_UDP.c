@@ -25,6 +25,12 @@ void *receive_thread(struct arg_struct *arguments);
 
 int main(int argc, char const **argv)
 {
+
+	if (argc < 3) {
+		fprintf(stderr, "Usage: %s <Server_1 IP> <Server_2 IP> ... <Server_N IP>\n", argv[0]);
+		exit (1);
+	}
+
 	printf("Qual seu nome?");
 	scanf("%s", name);
 
@@ -48,7 +54,7 @@ int main(int argc, char const **argv)
 	address.sin_port = htons(PORT);
 
 	//Printed the server socket addr and port
-	printf("Endereço IP: %s\n", inet_ntoa(address.sin_addr));
+	printf("Endereço IP Local: %s\n", inet_ntoa(address.sin_addr));
 	printf("Porta: %d\n", (int)ntohs(address.sin_port));
 
 	if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
@@ -61,13 +67,19 @@ int main(int argc, char const **argv)
 		perror("listen falhou :(");
 		exit(EXIT_FAILURE);
 	}
+	printf("%d\n", 70);
 	char ch[ECHOMAX];
 	pthread_t tid;
-	struct arg_struct args;
-	args.server_fd = server_fd;
-	args.server_addr_ip = inet_addr(argv[1]);
-	args.PORT = PORT;
-	pthread_create(&tid, 0, &receive_thread, &args); 
+	struct arg_struct servers[argc];
+	int i = 0;
+
+	for (; i < argc - 1; i++) {
+		servers[i].server_fd = server_fd;
+		servers[i].PORT = PORT;
+		servers[i].server_addr_ip = inet_addr(argv[i + 1]);
+		pthread_create(&tid, 0, &receive_thread, &servers[i]); 
+	}
+
 	do
 	{
 		printf("Escreva a mensagem para enviar\n");
@@ -76,7 +88,10 @@ int main(int argc, char const **argv)
 			break;
 		}
 		ch[strcspn(ch, "\n")] = 0;
-		sending(ch, PORT, server_fd, args.server_addr_ip);
+		int j = 0;
+		for (; j < argc - 1; j++) {
+			sending(ch, PORT, server_fd, servers[j].server_addr_ip);
+		}
 	} while (strcmp(ch, "") != 0);
 
 	close(server_fd);
