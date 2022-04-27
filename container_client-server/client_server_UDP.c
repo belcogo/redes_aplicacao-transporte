@@ -22,10 +22,14 @@ struct arg_struct {
 void sending(char linha[ECHOMAX], int PORT, int sock, char *server_addr_ip);
 void receiving(struct arg_struct *arguments);
 void *receive_thread(struct arg_struct *arguments);
+FILE *execute_command(char command[ECHOMAX]);
+void print_command_result(FILE *fp);
+
+// FILE *fp = execute_command("ls");
+// print_command_result(fp);
 
 int main(int argc, char const **argv)
 {
-
 	if (argc < 3) {
 		fprintf(stderr, "Usage: %s <Server_1 IP> <Server_2 IP> ... <Server_N IP>\n", argv[0]);
 		exit (1);
@@ -95,7 +99,28 @@ int main(int argc, char const **argv)
 	} while (strcmp(ch, "") != 0);
 
 	close(server_fd);
+
 	return 0;
+}
+
+FILE *execute_command(char command[ECHOMAX]) {
+	FILE *fp;
+	fp = popen(command, "r");
+	if (fp == NULL) {
+    printf("Comando inválido\n" );
+    exit(1);
+  }
+
+	// pclose(fp);
+
+	return fp;
+}
+
+void print_command_result(FILE *fp) {
+	char path[ECHOMAX];
+	while (fgets(path, sizeof(path), fp) != NULL) {
+    printf("%s", path);
+  }
 }
 
 //Sending messages to port
