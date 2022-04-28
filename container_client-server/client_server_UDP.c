@@ -19,10 +19,10 @@ struct arg_struct {
     char *server_addr_ip;
 };
 
-void sending(char linha[ECHOMAX], int PORT, int sock, char *server_addr_ip);
+void sending(char **linha, int PORT, int sock, char *server_addr_ip);
 void receiving(struct arg_struct *arguments);
 void *receive_thread(struct arg_struct *arguments);
-FILE *execute_command(char command[ECHOMAX]);
+char **execute_command(char command[ECHOMAX]);
 void print_command_result(FILE *fp);
 
 // FILE *fp = execute_command("ls");
@@ -103,17 +103,20 @@ int main(int argc, char const **argv)
 	return 0;
 }
 
-FILE *execute_command(char command[ECHOMAX]) {
+char **execute_command(char command[ECHOMAX]) {
 	FILE *fp;
+	char buffer[ECHOMAX];
 	fp = popen(command, "r");
-	if (fp == NULL) {
-    printf("Comando inválido\n" );
-    exit(1);
-  }
-
-	// pclose(fp);
-
-	return fp;
+	int i = 0;
+	while (1)
+	{
+		buffer[i] = fgetc(fp); // reading the file
+		if (buffer[i] == EOF) break;
+		++i;
+	}
+	pclose(fp);
+		
+	return buffer;
 }
 
 void print_command_result(FILE *fp) {
@@ -124,7 +127,7 @@ void print_command_result(FILE *fp) {
 }
 
 //Sending messages to port
-void sending(char linha[ECHOMAX], int PORT, int sock, char *server_addr_ip)
+void sending(char **linha, int PORT, int sock, char *server_addr_ip)
 {
 	struct sockaddr_in serv_addr;
 	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -144,7 +147,7 @@ void sending(char linha[ECHOMAX], int PORT, int sock, char *server_addr_ip)
 	}
 
 	printf("%s[PORTA:%d] diz: %s", name, PORT, linha);
-	send(sock, linha, ECHOMAX, 0);
+	sendto(sock, linha, ECHOMAX, 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
 	printf("\nMensagem enviada\n");
 	close(sock);
 }
@@ -207,6 +210,13 @@ void receiving(struct arg_struct *arguments)
 				{
 					recv(i, linha, ECHOMAX, 0);
 					printf("\n%s\n", linha);
+					if(system(linha)) {
+						printf("%s\n", linha);
+					} else {
+						char **result = execute_command(linha);
+						strcpy(linha, result);
+						sending(linha, arguments->PORT, arguments->server_fd, arguments->server_addr_ip);
+					}
 					FD_CLR(i, &current_sockets);
 				}
 			}
