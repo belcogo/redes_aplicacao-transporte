@@ -23,10 +23,6 @@ void sending(char **linha, int PORT, int sock, char *server_addr_ip);
 void receiving(struct arg_struct *arguments);
 void *receive_thread(struct arg_struct *arguments);
 char **execute_command(char command[ECHOMAX]);
-void print_command_result(FILE *fp);
-
-// FILE *fp = execute_command("ls");
-// print_command_result(fp);
 
 int main(int argc, char const **argv)
 {
@@ -117,13 +113,6 @@ char **execute_command(char command[ECHOMAX]) {
 	pclose(fp);
 		
 	return buffer;
-}
-
-void print_command_result(FILE *fp) {
-	char path[ECHOMAX];
-	while (fgets(path, sizeof(path), fp) != NULL) {
-    printf("%s", path);
-  }
 }
 
 //Sending messages to port
