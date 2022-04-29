@@ -23,10 +23,6 @@ void sending(char **linha, int PORT, int sock, char *server_addr_ip);
 void receiving(struct arg_struct *arguments);
 void *receive_thread(struct arg_struct *arguments);
 char **execute_command(char command[ECHOMAX]);
-void print_command_result(FILE *fp);
-
-// FILE *fp = execute_command("ls");
-// print_command_result(fp);
 
 int main(int argc, char const **argv)
 {
@@ -96,6 +92,10 @@ int main(int argc, char const **argv)
 		for (; j < argc - 1; j++) {
 			sending(ch, PORT, server_fd, servers[j].server_addr_ip);
 		}
+		char linha[ECHOMAX] = {0};
+		char **result = execute_command(linha);
+		strcpy(linha, result);
+		printf("%s", linha);
 	} while (strcmp(ch, "") != 0);
 
 	close(server_fd);
@@ -117,13 +117,6 @@ char **execute_command(char command[ECHOMAX]) {
 	pclose(fp);
 		
 	return buffer;
-}
-
-void print_command_result(FILE *fp) {
-	char path[ECHOMAX];
-	while (fgets(path, sizeof(path), fp) != NULL) {
-    printf("%s", path);
-  }
 }
 
 //Sending messages to port
@@ -215,7 +208,8 @@ void receiving(struct arg_struct *arguments)
 					} else {
 						char **result = execute_command(linha);
 						strcpy(linha, result);
-						sending(linha, arguments->PORT, arguments->server_fd, arguments->server_addr_ip);
+						printf("%s", linha);
+						// sending(linha, arguments->PORT, arguments->server_fd, arguments->server_addr_ip);
 					}
 					FD_CLR(i, &current_sockets);
 				}
